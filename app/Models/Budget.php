@@ -25,4 +25,16 @@ class Budget extends Model
     {
         return $this->hasMany(BudgetItem::class);
     }
+
+    public function getFormattedBudgetItemsAttribute()
+    {
+        return $this->budgetItems->map(function ($item) {
+            return [
+                'cash_out_type_id' => $item->cash_out_type_id,
+                'amount' => $item->amount,
+                'currency' => $item->currency,
+                'description' => $item->description
+            ];
+        })->toArray();
+    }
 }

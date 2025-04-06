@@ -18,6 +18,8 @@ class CashflowDistributionChart extends ChartWidget
         $currentYear = date('Y');
 
         $cashOutTypes = CashOutType::where('is_active', true)
+        ->where('business_id', auth()->user()->business_id)
+        ->where('branch_id', auth()->user()->branch_id)
             ->with(['requisitions' => function ($query) use ($currentYear) {
                 $query->where('status', 'approved')
                     ->whereYear('created_at', $currentYear);

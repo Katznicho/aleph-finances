@@ -17,23 +17,19 @@ class Requisition extends Model
         'business_id',
         'branch_id',
         'user_id',
-        'cash_out_type_id',
-        'amount',
-        'description',
         'requested_by',
         'reviewed_by',
         'approved_by',
-        'status', // enum: 'pending', 'reviewed', 'approved', 'rejected'
+        'status',
         'review_comments',
         'approval_comments',
         'requested_date',
         'review_date',
         'approval_date',
-        'reference_number',
-        'currency',
-        'project_id', // nullable, only for project costs
+        'project_id',
         'is_paid',
-        'payment_date'
+        'payment_date',
+        'budget_id', // Added budget_id
     ];
 
     protected $casts = [
@@ -68,6 +64,11 @@ class Requisition extends Model
     public function approvedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'approved_by');
+    }
+
+    public function budget(): BelongsTo
+    {
+        return $this->belongsTo(Budget::class);
     }
 
     protected static function boot()

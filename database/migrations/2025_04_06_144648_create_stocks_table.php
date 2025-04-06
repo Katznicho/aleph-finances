@@ -11,13 +11,14 @@ return new class extends Migration
      */
     public function up(): void
 {
-    Schema::create('projects', function (Blueprint $table) {
+    Schema::create('stocks', function (Blueprint $table) {
         $table->id();
         $table->string('name');
-        $table->text('description')->nullable();
-        $table->string('status')->default('active');
-        $table->date('start_date');
-        $table->date('end_date')->nullable();
+        $table->decimal('quantity', 10, 2);
+        $table->string('unit');
+        $table->decimal('unit_price', 15, 2);
+        $table->decimal('total_price', 15, 2);
+        $table->foreignId('project_id')->constrained();
         $table->foreignId('business_id')->constrained();
         $table->foreignId('branch_id')->constrained();
         $table->timestamps();
@@ -29,6 +30,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('projects');
+        Schema::dropIfExists('stocks');
     }
 };

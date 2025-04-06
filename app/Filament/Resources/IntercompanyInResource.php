@@ -53,6 +53,10 @@ class IntercompanyInResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
+        ->modifyQueryUsing(fn ($query) => $query
+                ->where('business_id', auth()->user()->business_id)
+                ->where('branch_id', auth()->user()->branch_id)
+            )
             ->columns([
                 Tables\Columns\TextColumn::make('company')
                     ->searchable(),

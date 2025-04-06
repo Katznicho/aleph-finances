@@ -28,6 +28,8 @@ class CashflowTrendsChart extends ChartWidget
             return Requisition::where('status', 'approved')
                 ->whereYear('created_at', $month->year)
                 ->whereMonth('created_at', $month->month)
+                ->where('business_id', auth()->user()->business_id)
+                ->where('branch_id', auth()->user()->branch_id)
                 ->sum('amount');
         });
 

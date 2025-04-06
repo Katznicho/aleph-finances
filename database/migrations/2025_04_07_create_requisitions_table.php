@@ -24,7 +24,7 @@ return new class extends Migration
             $table->datetime('approval_date')->nullable();
             $table->string('reference_number')->unique();
             $table->string('currency')->default('UGX');
-            $table->foreignId('project_id')->nullable()->constrained();
+            $table->foreignId('budget_id')->nullable()->constrained();
             $table->boolean('is_paid')->default(false);
             $table->datetime('payment_date')->nullable();
             $table->timestamps();

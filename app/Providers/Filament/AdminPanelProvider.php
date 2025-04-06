@@ -30,7 +30,8 @@ class AdminPanelProvider extends PanelProvider
             ->id('admin')
             ->path('admin')
             ->login()
-            ->brandLogo('https://alephthefathershouse.org/template/aleph.png')
+            ->profile()
+            ->brandLogo(asset('swivel.jpeg'))
             ->colors([
                 'primary' => Color::Amber,
             ])
@@ -42,9 +43,9 @@ class AdminPanelProvider extends PanelProvider
             ])
             ->discoverWidgets(in: app_path('Filament/Widgets'), for: 'App\\Filament\\Widgets')
             ->widgets([
-                CashflowStatsOverview::class,
-                CashflowTrendsChart::class,
-                CashflowDistributionChart::class,
+                // CashflowStatsOverview::class,
+                // CashflowTrendsChart::class,
+                // CashflowDistributionChart::class,
             ])
             ->middleware([
                 EncryptCookies::class,

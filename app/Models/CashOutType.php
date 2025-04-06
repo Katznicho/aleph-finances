@@ -13,7 +13,7 @@ class CashOutType extends Model
         'description',
         'is_active',
         'business_id',
-        'branch_id',
+        'branch_id'
     ];
 
     protected $casts = [

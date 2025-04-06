@@ -21,6 +21,10 @@ class CashOutTypeResource extends Resource
     {
         return $form
             ->schema([
+                Forms\Components\Hidden::make('business_id')
+                    ->default(fn () => auth()->user()->business_id),
+                Forms\Components\Hidden::make('branch_id')
+                    ->default(fn () => auth()->user()->branch_id),
                 Forms\Components\TextInput::make('name')
                     ->required()
                     ->maxLength(255),
@@ -29,6 +33,10 @@ class CashOutTypeResource extends Resource
                     ->options([
                         'admin_cost' => 'Admin Cost',
                         'project_cost' => 'Project Cost',
+                        'loans' => 'Loans',
+                        'statutory'=>'Statutory',
+                        'business_development'=>'Business Development',
+                        'inter_company'=>'Inter Company'
                     ]),
                 Forms\Components\Textarea::make('description')
                     ->maxLength(65535)
@@ -42,6 +50,10 @@ class CashOutTypeResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
+            ->modifyQueryUsing(fn ($query) => $query
+                ->where('business_id', auth()->user()->business_id)
+                ->where('branch_id', auth()->user()->branch_id)
+            )
             ->columns([
                 Tables\Columns\TextColumn::make('name')
                     ->searchable(),
@@ -92,4 +104,6 @@ class CashOutTypeResource extends Resource
             'edit' => Pages\EditCashOutType::route('/{record}/edit'),
         ];
     }
+
+    
 }

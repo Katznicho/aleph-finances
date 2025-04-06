@@ -1,4 +1,22 @@
-<x-filament-panels::page>
+<x-filament::page>
+    <div class="mb-4 flex gap-4">
+        <x-filament::input.wrapper>
+            <x-filament::input 
+                type="date" 
+                wire:model.live="startDate"
+                :label="__('Start Date')"
+            />
+        </x-filament::input.wrapper>
+
+        <x-filament::input.wrapper>
+            <x-filament::input 
+                type="date" 
+                wire:model.live="endDate"
+                :label="__('End Date')"
+            />
+        </x-filament::input.wrapper>
+    </div>
+
     <div class="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <x-filament::card>
             <h2 class="text-lg font-bold tracking-tight">Opening Balance</h2>

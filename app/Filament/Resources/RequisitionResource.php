@@ -21,85 +21,178 @@ class RequisitionResource extends Resource
     {
         return $form
             ->schema([
-                Forms\Components\Repeater::make('requisitions')
+                Forms\Components\Hidden::make('business_id')
+                    ->default(fn () => auth()->user()->business_id),
+                Forms\Components\Hidden::make('branch_id')
+                    ->default(fn () => auth()->user()->branch_id),
+                Forms\Components\Hidden::make('requested_by')
+                    ->default(fn () => auth()->id()),
+
+                Forms\Components\Repeater::make('budgets')
                     ->schema([
-                        Forms\Components\Grid::make()
+                        Forms\Components\Select::make('budget_id')
+                            ->relationship(
+                                name: 'budget',
+                                titleAttribute: 'name',
+                                modifyQueryUsing: fn (Builder $query) => $query
+                                    ->where('business_id', auth()->user()->business_id)
+                                    ->where('branch_id', auth()->user()->branch_id)
+                            )
+                            ->required()
+                            ->searchable()
+                            ->preload()
+                            ->live()
+                            ->afterStateUpdated(function ($state, Forms\Set $set) {
+                                if (!$state) {
+                                    $set('requisition_items', []);
+                                    return;
+                                }
+                                
+                                $budget = \App\Models\Budget::with('budgetItems.cashOutType')->find($state);
+                                if (!$budget) return;
+                                
+                                $items = $budget->budgetItems->map(function ($item) {
+                                    return [
+                                        'id' => $item->id,
+                                        'cash_out_type_id' => $item->cash_out_type_id,
+                                        'budget_item_name' => $item->cashOutType->name,
+                                        'original_amount' => $item->amount,
+                                        'amount' => 0,
+                                        'currency' => $item->currency,
+                                        'description' => $item->description
+                                    ];
+                                })->toArray();
+                                
+                                $set('requisition_items', []);
+                                $set('selected_items', []);
+                            }),
+
+                        Forms\Components\Section::make('Budget Items')
                             ->schema([
-                                Forms\Components\Select::make('cash_out_type_id')
-                                    ->relationship('cashOutType', 'name')
-                                    ->required()
+                                Forms\Components\Select::make('requisition_items')
+                                    ->multiple()
                                     ->searchable()
                                     ->preload()
-                                    ->label('Chart of Accounts')
-                                    ->createOptionForm([
-                                        Forms\Components\TextInput::make('name')
-                                            ->required()
-                                            ->label('Account Name'),
-                                        Forms\Components\Select::make('category')
-                                            ->required()
-                                            ->options([
-                                                'admin_cost' => 'Administrative Cost',
-                                                'project_cost' => 'Project Cost',
-                                            ]),
+                                    ->options(function (Forms\Get $get) {
+                                        $budgetId = $get('budget_id');
+                                        if (!$budgetId) return [];
+                                        
+                                        $budget = \App\Models\Budget::with('budgetItems.cashOutType')->find($budgetId);
+                                        if (!$budget) return [];
+                                        
+                                        return $budget->budgetItems->mapWithKeys(function ($item) {
+                                            return [
+                                                $item->id => "{$item->cashOutType->name} ({$item->currency} " . 
+                                                number_format($item->amount, 2) . ")"
+                                            ];
+                                        });
+                                    })
+                                    ->live()
+                                    ->afterStateUpdated(function ($state, Forms\Set $set, Forms\Get $get) {
+                                        if (!$state) {
+                                            $set('selected_items', []);
+                                            return;
+                                        }
+                                        
+                                        $budgetId = $get('budget_id');
+                                        $budget = \App\Models\Budget::with('budgetItems.cashOutType')->find($budgetId);
+                                        if (!$budget) return;
+                                        
+                                        $selectedItems = $budget->budgetItems
+                                            ->whereIn('id', $state)
+                                            ->map(function ($item) {
+                                                return [
+                                                    'cash_out_type_id' => $item->cash_out_type_id,
+                                                    'budget_item_name' => $item->cashOutType->name,
+                                                    'original_amount' => $item->amount,
+                                                    'amount' => 0,
+                                                    'currency' => $item->currency,
+                                                    'description' => $item->description
+                                                ];
+                                            })
+                                            ->values()
+                                            ->toArray();
+                                        
+                                        $set('selected_items', $selectedItems);
+                                    })
+                                    ->columnSpanFull(),
+                                
+                                Forms\Components\Repeater::make('selected_items')
+                                    ->schema([
+                                        Forms\Components\Grid::make()
+                                            ->schema([
+                                                Forms\Components\Hidden::make('cash_out_type_id'),
+                                                Forms\Components\TextInput::make('budget_item_name')
+                                                    ->disabled()
+                                                    ->label('Budget Item'),
+                                                Forms\Components\TextInput::make('original_amount')
+                                                    ->disabled()
+                                                    ->prefix(fn (Forms\Get $get) => $get('currency'))
+                                                    ->label('Budgeted Amount'),
+                                                Forms\Components\TextInput::make('amount')
+                                                    ->label('Requested Amount')
+                                                    ->prefix(fn (Forms\Get $get) => $get('currency'))
+                                                    ->numeric()
+                                                    ->required()
+                                                    ->live()
+                                                    ->rules([
+                                                        'numeric',
+                                                        'min:1',
+                                                    ])
+                                                    ->minValue(1)
+                                                    ->default(0)
+                                                    ->afterStateUpdated(function (Forms\Get $get, Forms\Set $set, $state) {
+                                                        $originalAmount = $get('original_amount');
+                                                        $set('amount_left', $originalAmount - ($state ?? 0));
+                                                    }),
+                                                
+                                                Forms\Components\TextInput::make('amount_left')
+                                                    ->disabled()
+                                                    ->label('Amount Left')
+                                                    ->prefix(fn (Forms\Get $get) => $get('currency'))
+                                                    ->live()
+                                                    ->afterStateHydrated(function ($component, $state, $record, Forms\Get $get) {
+                                                        $originalAmount = $get('original_amount');
+                                                        $requestedAmount = $get('amount') ?? 0;
+                                                        $component->state($originalAmount - $requestedAmount);
+                                                    }),  // Added missing comma here
+                                                
+                                                Forms\Components\Textarea::make('description')
+                                                    ->rows(1)
+                                            ])
+                                            ->columns(5)
                                     ])
-                                    ->columnSpan(3),
-                                Forms\Components\TextInput::make('amount')
-                                    ->required()
-                                    ->numeric()
-                                    ->columnSpan(2),
-                                Forms\Components\Select::make('currency')
-                                    ->options([
-                                        'UGX' => 'UGX',
-                                        'USD' => 'USD',
-                                        'EUR' => 'EUR',
-                                        'GBP' => 'GBP',
-                                        'KES' => 'KShs',
-                                        'TZS' => 'TZS',
-                                    ])
-                                    ->default('UGX')
-                                    ->required()
-                                    ->columnSpan(1),
-                                Forms\Components\Select::make('project_id')
-                                    ->relationship('project', 'name')
-                                    ->searchable()
-                                    ->preload()
-                                    ->visible(fn (Forms\Get $get) => 
-                                        $get('cash_out_type_id') && 
-                                        Requisition::find($get('cash_out_type_id'))?->category === 'project_cost'
-                                    )
-                                    ->columnSpan(3),
-                                Forms\Components\Textarea::make('description')
-                                    ->required()
-                                    ->rows(1)
-                                    ->columnSpan(3),
+                                    ->disabled(fn ($get) => !$get('budget_id'))
+                                    ->deletable(false)
+                                    ->reorderable(false)
+                                    ->columnSpanFull()
                             ])
-                            ->columns(6)
+                            ->columnSpanFull()
                     ])
-                    ->defaultItems(1)
-                    ->addActionLabel('Add Another Requisition')
+                    ->addActionLabel('Add Another Budget')
                     ->cloneable()
                     ->itemLabel(fn (array $state): ?string => 
-                        ($state['amount'] ?? '') . ' ' . ($state['currency'] ?? '') . ' - ' . 
-                        (isset($state['description']) ? substr($state['description'], 0, 20) . '...' : 'New Requisition')
+                        isset($state['budget_id']) ? 
+                        \App\Models\Budget::find($state['budget_id'])?->name : 
+                        'New Budget Request'
                     )
-                    ->collapsible()
-                    ->collapsed()
                     ->columnSpanFull()
-                    ->reorderableWithButtons()
-                    ->deleteAction(
-                        fn (Forms\Components\Actions\Action $action) => $action->requiresConfirmation()
-                    )
-            ]);
+            ])
+            ->columns(12);
     }
 
     public static function table(Table $table): Table
     {
         return $table
+        ->modifyQueryUsing(fn ($query) => $query
+                ->where('business_id', auth()->user()->business_id)
+                ->where('branch_id', auth()->user()->branch_id)
+            )
             ->columns([
                 Tables\Columns\TextColumn::make('reference_number')
                     ->searchable(),
-                Tables\Columns\TextColumn::make('cashOutType.name')
-                    ->label('Chart of Accounts')
+                Tables\Columns\TextColumn::make('budget.name')
+                    ->label('Budget')
                     ->searchable(),
                 Tables\Columns\TextColumn::make('amount')
                     ->money(fn ($record) => $record->currency)
@@ -115,6 +208,20 @@ class RequisitionResource extends Resource
                 Tables\Columns\TextColumn::make('requested_date')
                     ->dateTime()
                     ->sortable(),
+                Tables\Columns\TextColumn::make('requestedBy.name')
+                    ->label('Requested By'),
+                Tables\Columns\TextColumn::make('reviewedBy.name')
+                    ->label('Reviewed By')
+                    ->visible(fn ($record) => $record && $record->reviewed_by !== null),
+                Tables\Columns\TextColumn::make('review_date')
+                    ->dateTime()
+                    ->visible(fn ($record) => $record && $record->review_date !== null),
+                Tables\Columns\TextColumn::make('approvedBy.name')
+                    ->label('Approved By')
+                    ->visible(fn ($record) => $record && $record->approved_by !== null),
+                Tables\Columns\TextColumn::make('approval_date')
+                    ->dateTime()
+                    ->visible(fn ($record) => $record && $record->approval_date !== null),
             ])
             ->actions([
                 Tables\Actions\ViewAction::make(),

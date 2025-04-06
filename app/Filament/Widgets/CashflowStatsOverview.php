@@ -15,9 +15,18 @@ class CashflowStatsOverview extends BaseWidget
     {
         $currentYear = date('Y');
         
-        $totalCashIn = Revenue::whereYear('created_at', $currentYear)->sum('amount');
-        $totalCashOut = Requisition::where('status', 'approved')->whereYear('created_at', $currentYear)->sum('amount');
-        $openingBalance = OpeningBalance::where('year', $currentYear)->first()?->amount ?? 0;
+        $totalCashIn = Revenue::whereYear('created_at', $currentYear)
+        ->where('business_id', auth()->user()->business_id)
+        ->where('branch_id', auth()->user()->branch_id)
+        ->sum('amount');
+        $totalCashOut = Requisition::where('status', 'approved')
+        ->where('business_id', auth()->user()->business_id)
+        ->where('branch_id', auth()->user()->branch_id)
+        ->whereYear('created_at', $currentYear)->sum('amount');
+        $openingBalance = OpeningBalance::where('year', $currentYear)
+        ->where('business_id', auth()->user()->business_id)
+        ->where('branch_id', auth()->user()->branch_id)
+        ->first()?->amount ?? 0;
         $currentBalance = $openingBalance + $totalCashIn - $totalCashOut;
 
         return [

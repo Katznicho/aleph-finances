@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class InterCompanyIn extends Model
 {
+    protected $table = 'intercompany_ins';
     protected $fillable = [
         'from_company',
         'amount',
